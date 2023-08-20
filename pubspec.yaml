@@ -1,0 +1,56 @@
+name: conversa
+description: Chatting Application.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.6 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  dynamic_color: ^1.6.6
+  dio: ^5.3.2
+  url_launcher: ^6.1.12
+  http: ^0.13.6
+  flutter_chat_bubble: ^2.0.2
+  emoji_picker_flutter: ^1.6.1
+  fluttertoast: ^8.2.2
+  permission_handler: ^10.4.3
+  font_awesome_flutter: ^10.5.0
+
+  firebase_core: ^2.15.0
+  firebase_auth: ^4.7.2
+  google_sign_in: ^6.1.4
+  sign_in_with_apple: ^5.0.0
+  cloud_firestore: ^4.8.4
+  firebase_storage: ^11.2.5
+  shared_preferences: ^2.2.0
+  phonenumbers: ^1.1.0
+
+  lottie: ^2.5.0
+  image_picker: ^1.0.2
+  photo_view: ^0.14.0
+  image_editor: ^1.3.0
+  photo_gallery: ^2.1.1
+  image_cropper: ^4.0.1
+  flick_video_player: ^0.5.0
+  video_player: ^2.7.0
+  file_picker: ^5.2.10
+  internet_file: ^1.2.0
+  document_viewer: ^0.0.1
+  video_thumbnail: ^0.5.3
+  intl: ^0.18.1
+  google_fonts: ^4.0.4
+  pinput: ^3.0.0
+  country_flags: ^2.1.0
+
+
+flutter:
+  fonts:
+    - family: BackToBlack
+      fonts:
+        - asset: assets/fonts/back_to_black.ttf
+  uses-material-design: true
+  assets:
+      - assets/lottie_animation/
+      - assets/images/

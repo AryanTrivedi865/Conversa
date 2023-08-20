@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "372784639376",
+    "project_id": "conversa-c283b",
+    "storage_bucket": "conversa-c283b.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:372784639376:android:69b86d7549542e44671715",
+        "android_client_info": {
+          "package_name": "com.material.aryan.conversa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "372784639376-6dsdi9k0vu188dgajiab09jld7o84fn2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.material.aryan.conversa",
+            "certificate_hash": "3da9f9f7430f6dab9b1e124873717259b882fd6c"
+          }
+        },
+        {
+          "client_id": "372784639376-7cm98ieqq86bbbo5pc38lmf88jlb4605.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1oF-5baRBhXpzsNkD4MGCMhj7QIT1W3I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "372784639376-015aqpu1fo50ke9andfjrmtd69ktrcn1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

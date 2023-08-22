@@ -276,7 +276,7 @@ class _AIScreenState extends State<AIScreen> {
   }
 
   Future<String> getChatResponse(String message) async {
-    final apiKey = 'API_KEY';
+    final apiKey = 'API_KEY_HERE';
     final endpoint = 'https://api.openai.com/v1/chat/completions';
 
     final response = await http.post(

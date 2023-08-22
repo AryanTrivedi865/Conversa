@@ -1,16 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:conversa/api/apis.dart';
-import 'package:conversa/authentication/welcome_screen.dart';
 import 'package:conversa/bottom_navigation_screens/ai_screen.dart';
 import 'package:conversa/bottom_navigation_screens/call_screen.dart';
 import 'package:conversa/bottom_navigation_screens/chat_screen.dart';
 import 'package:conversa/bottom_navigation_screens/status_screen.dart';
+import 'package:conversa/main.dart';
 import 'package:conversa/models/chat_user.dart';
+import 'package:conversa/screens/contacts_screen.dart';
 import 'package:conversa/screens/profile_screen.dart';
+import 'package:conversa/utils/utils.dart';
 import 'package:conversa/widgets/user_item.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,39 +29,479 @@ class _HomeScreenState extends State<HomeScreen> {
   final bool _showAppBar = true;
   SearchController searchController = SearchController();
   bool _isSearching = false;
+  int _indexForDrawer = 0;
 
   List<ChatUser> searchResults = [];
+  List<ChatUser> blockedUsers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    APIs.updateActiveStatus(true);
+    SystemChannels.lifecycle.setMessageHandler((message) {
+      if (message == AppLifecycleState.resumed.toString()) {
+        APIs.updateActiveStatus(true);
+      } else if (message == AppLifecycleState.paused.toString() ||
+          message == AppLifecycleState.detached.toString()) {
+        APIs.updateActiveStatus(false);
+      }
+      return Future.value('');
+    });
+  }
 
   double _screenWidthRatio(double value) {
-    return MediaQuery.of(context).size.width * value;
+    return MediaQuery
+        .of(context)
+        .size
+        .width * value;
   }
 
   double _screenHeightRatio(double value) {
-    return MediaQuery.of(context).size.height * value;
+    return MediaQuery
+        .of(context)
+        .size
+        .height * value;
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusManager.instance.primaryFocus?.unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        APIs.updateActiveStatus(false);
+        return true;
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        appBar: _getAppBar(_showAppBar),
-        body: (!_isSearching)
-            ? _getSelectedScreen(_selectedIndex)
-            : _showSearchScreen(searchResults),
-        floatingActionButton: _getFloatingActionButton(_selectedIndex),
-        bottomNavigationBar: _getBottomNavigationBar(_showBottomNavigation),
-        drawer: Drawer(
-          child: IconButton(
-              onPressed: () => {FirebaseAuth.instance.signOut(),
-              Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => WelcomeScreen(),), (route) => false)},
-              icon: Icon(Icons.logout)),
+      child: GestureDetector(
+        onTap: () {
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: _scaffoldKey,
+          appBar: _getAppBar(_showAppBar),
+          body: (!_isSearching)
+              ? (_indexForDrawer == 0)
+              ? _getSelectedScreen(_selectedIndex)
+              : _getOtherScreens(_indexForDrawer)
+              : _showSearchScreen(searchResults),
+          floatingActionButton: _getFloatingActionButton(_selectedIndex),
+          bottomNavigationBar: _getBottomNavigationBar(_showBottomNavigation),
+          drawer: Drawer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: _screenHeightRatio(0.05),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 24.0),
+                  child: Text(
+                    'Conversa',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontFamily: 'BackToBlack',
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: _screenHeightRatio(0.01),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Chats',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding:
+                  const EdgeInsets.only(right: 8.0, top: 4.0, bottom: 4.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.inbox),
+                    title: const Text('Primary'),
+                    selected: _indexForDrawer == 0,
+                    selectedTileColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .tertiaryContainer,
+                    shape: _indexForDrawer == 0
+                        ? RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    )
+                        : null,
+                    selectedColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .onTertiaryContainer,
+                    onTap: () {
+                      setState(() {
+                        _indexForDrawer = 0;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.archive),
+                    title: const Text('Archived Chats'),
+                    selected: _indexForDrawer == 1,
+                    selectedTileColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .tertiaryContainer,
+                    shape: _indexForDrawer == 1
+                        ? RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    )
+                        : null,
+                    selectedColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .onTertiaryContainer,
+                    onTap: () {
+                      setState(() {
+                        _indexForDrawer = 1;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.person_off),
+                    title: const Text('Blocked Users'),
+                    selected: _indexForDrawer == 2,
+                    selectedTileColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .tertiaryContainer,
+                    shape: _indexForDrawer == 2
+                        ? RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    )
+                        : null,
+                    selectedColor:
+                    Theme
+                        .of(context)
+                        .colorScheme
+                        .onTertiaryContainer,
+                    onTap: () {
+                      setState(() {
+                        _indexForDrawer = 2;
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const Spacer(),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                  child: ListTile(
+                    //theme change slider button
+                    leading: Icon(Theme.of(context).brightness == Brightness.dark
+                        ? Icons.dark_mode
+                        : Icons.light_mode),
+                    title: Text(
+                        Theme
+                            .of(context)
+                            .brightness ==
+                            Brightness.dark
+                            ? 'Dark Mode'
+                            : 'Light Mode'
+                    ),
+                    trailing: Switch(
+                      value: Theme
+                          .of(context)
+                          .brightness ==
+                          Brightness.dark, //check if dark mode is on
+                      onChanged: (value) {
+                        setState(() {
+                          if (value) {
+                            Conversa().toggleThemeMode(ThemeMode.dark);
+                          } else {
+                            Conversa().toggleThemeMode(ThemeMode.light);
+                          }
+                        },);
+                      },
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.settings),
+                    title: const Text('Settings'),
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.help),
+                    title: const Text('Help and Feedback'),
+                    onTap: () {
+                      showDialog(context: context, builder: (context) => AlertDialog(
+                        title: const Text('Help and Feedback'),
+                        content: const Text('Contact us at: \n\nInstagram: aryan_.___ \n\nEmail: conversa1805@gmail.com\n\nGithub: AryanTrivedi865\n\n'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ));
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  _getOtherScreens(int index) {
+    List<ChatUser> users = [];
+    if (index == 1) {
+      return StreamBuilder(
+        stream: APIs.getArchived(),
+        builder: (context, snapshot) {
+          List<String> blocked = [];
+          if (snapshot.hasData) {
+            final data = snapshot.data?.docs;
+            blocked = data?.map((e) => e.id).toList() ?? [];
+            if (blocked.isNotEmpty) {
+              return StreamBuilder(
+                builder: (context, snapshot) =>
+                    StreamBuilder(
+                      stream: APIs.getUsers(blocked),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final data = snapshot.data?.docs;
+                          users = data
+                              ?.map((e) => ChatUser.fromJson(e.data()))
+                              .toList() ??
+                              [];
+                        }
+                        if (users.isNotEmpty) {
+                          return ListView.builder(
+                            itemCount: users.length,
+                            physics: const BouncingScrollPhysics(),
+                            itemBuilder: (context, index) {
+                              return UserItem(
+                                chatUser: users[index],
+                                chatBoolean: true,
+                                blocked: false,
+                                archived: true,
+                              );
+                            },
+                          );
+                        } else {
+                          return Wrap(
+                            children: [
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/network_connection_error.png',
+                                      width: ScreenUtils.screenWidthRatio(
+                                          context, 0.8),
+                                      height: ScreenUtils.screenHeightRatio(
+                                          context, 0.4),
+                                    ),
+                                    SizedBox(
+                                        height: ScreenUtils.screenHeightRatio(
+                                            context, 0.04)),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 16),
+                                      child: Text(
+                                        'No Starred Users Found',
+                                        style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+              );
+            } else {
+              return Wrap(
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/network_connection_error.png',
+                          width: ScreenUtils.screenWidthRatio(context, 0.8),
+                          height: ScreenUtils.screenHeightRatio(context, 0.4),
+                        ),
+                        SizedBox(
+                            height:
+                            ScreenUtils.screenHeightRatio(context, 0.04)),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'No Starred Users Found',
+                            style: TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+          }
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+    } else {
+      return StreamBuilder(
+        stream: APIs.getBlocked(),
+        builder: (context, snapshot) {
+          List<String> blocked = [];
+          if (snapshot.hasData) {
+            final data = snapshot.data?.docs;
+            blocked = data?.map((e) => e.id).toList() ?? [];
+            if (blocked.isNotEmpty) {
+              return StreamBuilder(
+                builder: (context, snapshot) =>
+                    StreamBuilder(
+                      stream: APIs.getUsers(blocked),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final data = snapshot.data?.docs;
+                          users = data
+                              ?.map((e) => ChatUser.fromJson(e.data()))
+                              .toList() ??
+                              [];
+                        }
+                        if (users.isNotEmpty) {
+                          return ListView.builder(
+                            itemCount: users.length,
+                            physics: const BouncingScrollPhysics(),
+                            itemBuilder: (context, index) {
+                              return UserItem(
+                                chatUser: users[index],
+                                chatBoolean: false,
+                                blocked: true,
+                                archived: false,
+                              );
+                            },
+                          );
+                        } else {
+                          return Wrap(
+                            children: [
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/network_connection_error.png',
+                                      width: ScreenUtils.screenWidthRatio(
+                                          context, 0.8),
+                                      height: ScreenUtils.screenHeightRatio(
+                                          context, 0.4),
+                                    ),
+                                    SizedBox(
+                                        height: ScreenUtils.screenHeightRatio(
+                                            context, 0.04)),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 16),
+                                      child: Text(
+                                        'No Blocked Users Found',
+                                        style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+              );
+            } else {
+              return Wrap(
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/network_connection_error.png',
+                          width: ScreenUtils.screenWidthRatio(context, 0.8),
+                          height: ScreenUtils.screenHeightRatio(context, 0.4),
+                        ),
+                        SizedBox(
+                            height:
+                            ScreenUtils.screenHeightRatio(context, 0.04)),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'No Blocked Users Found',
+                            style: TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+          }
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+    }
   }
 
   _getAppBar(showAppBar) {
@@ -86,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onChanged: (value) {
               if (value.isEmpty) {
                 setState(
-                  () {
+                      () {
                     _isSearching = false;
                   },
                 );
@@ -101,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 }
                 setState(
-                  () {
+                      () {
                     searchResults;
                     _isSearching = true;
                   },
@@ -112,25 +554,56 @@ class _HomeScreenState extends State<HomeScreen> {
             trailing: [
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) => const ProfileScreen(),
-                    ),
-                  );
+                onTap: () =>
+                {
+                  showModalBottomSheet(
+                      context: context,
+                      showDragHandle: true,
+                      isScrollControlled: true,
+                      builder: (_) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Theme
+                                .of(context)
+                                .colorScheme
+                                .surface,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
+                          ),
+                          child: const ProfileScreen(),
+                        );
+                      })
                 },
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: APIs.getCurrentUser(),
                   builder: (BuildContext context,
                       AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>>
-                          snapshot) {
+                      snapshot) {
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.transparent,
+                      );
+                    }
                     final current =
-                        ChatUser.fromJson(snapshot.data!.docs.first.data());
-                    return CircleAvatar(
-                      radius: 20,
-                      backgroundImage: NetworkImage(current.userImageUrl),
-                    );
+                    ChatUser.fromJson(snapshot.data!.docs.first.data());
+                    // ignore: unnecessary_null_comparison
+                    if (current.userImageUrl != null) {
+                      return CircleAvatar(
+                        radius: 20,
+                        backgroundImage: NetworkImage(current.userImageUrl),
+                      );
+                    } else {
+                      return const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.transparent,
+                      );
+                    }
                   },
                 ),
               ),
@@ -151,6 +624,9 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           return UserItem(
             chatUser: searchResults[index],
+            chatBoolean: true,
+            blocked: false,
+            archived: false,
           );
         },
       );
@@ -213,7 +689,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return null;
       case 1:
         return FloatingActionButton.extended(
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(
+                builder: (_) => const ContactsScreen(),
+              ),
+            );
+          },
           label: const Text("Start Chat"),
           icon: const Icon(Icons.message),
         );
@@ -233,9 +716,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _getBottomNavigationBar(bool showBottomNavigation) {
-    Brightness currentThemeMode = Theme.of(context).brightness;
+    Brightness currentThemeMode = Theme
+        .of(context)
+        .brightness;
     Color itemColor =
-        currentThemeMode == Brightness.dark ? Colors.white : Colors.black;
+    currentThemeMode == Brightness.dark ? Colors.white : Colors.black;
     if (showBottomNavigation) {
       return SizedBox(
         height: _screenHeightRatio(0.098), // Relative height

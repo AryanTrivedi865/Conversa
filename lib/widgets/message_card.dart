@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:conversa/api/apis.dart';
+import 'package:conversa/models/chat_user.dart';
 import 'package:conversa/models/message_model.dart';
 import 'package:conversa/utils/documents.dart';
 import 'package:conversa/utils/epoch_to_date.dart';
@@ -18,8 +19,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 class MessageCard extends StatefulWidget {
   final MessageModel chats;
+  final ChatUser chatUser;
+  final bool setHeight;
 
-  const MessageCard({super.key, required this.chats});
+  const MessageCard({super.key, required this.chats, required this.chatUser, required this.setHeight});
 
   @override
   State<MessageCard> createState() => _MessageCardState();
@@ -69,6 +72,7 @@ class _MessageCardState extends State<MessageCard> {
             elevation: 0,
             child: Container(
                 constraints: BoxConstraints(
+                  maxHeight: (widget.setHeight) ? width * 0.6 : double.infinity,
                   minWidth: width * 0.05,
                   maxWidth:
                       (messageType == "image") ? width * 0.4 : width * 0.6,

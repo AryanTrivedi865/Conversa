@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:conversa/api/apis.dart';
@@ -8,14 +9,17 @@ import 'package:conversa/utils/audio_utils.dart';
 import 'package:conversa/utils/epoch_to_date.dart';
 import 'package:conversa/utils/gallery_screen.dart';
 import 'package:conversa/utils/send_image.dart';
+import 'package:conversa/utils/utils.dart';
 import 'package:conversa/utils/video_preview.dart';
 import 'package:conversa/widgets/message_card.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 class UserChatScreen extends StatefulWidget {
@@ -35,7 +39,7 @@ class _UserChatScreenState extends State<UserChatScreen> {
   List<MessageModel> _chats = [];
   TextEditingController textEditingController = TextEditingController();
   FocusNode focusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();
+  ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -48,7 +52,7 @@ class _UserChatScreenState extends State<UserChatScreen> {
         });
       }
     });
-    WidgetsBinding.instance?.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
     super.initState();
@@ -108,11 +112,14 @@ class _UserChatScreenState extends State<UserChatScreen> {
     );
   }
 
+  GlobalKey streamKey = GlobalKey();
+
   _chatUI() {
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.only(top: 8.0),
         child: StreamBuilder(
+          key: streamKey,
           stream: APIs.getAllMessage(widget.user),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
@@ -120,7 +127,9 @@ class _UserChatScreenState extends State<UserChatScreen> {
               final temp =
                   data?.map((e) => MessageModel.fromJson(e.data())).toList() ??
                       [];
-              if (_chats.length < temp.length) {
+              if (_chats.length < temp.length ||
+                  temp.length < _chats.length ||
+                  _chats.length == temp.length) {
                 _chats = temp;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollController.animateTo(
@@ -133,15 +142,319 @@ class _UserChatScreenState extends State<UserChatScreen> {
             }
 
             if (_chats.isNotEmpty) {
-              return Flexible(
-                child: ListView.builder(
-                  itemCount: _chats.length,
-                  controller: _scrollController,
-                  physics: const ScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    return MessageCard(chats: _chats[index]);
-                  },
-                ),
+              return ListView.builder(
+                itemCount: _chats.length,
+                controller: _scrollController,
+                physics: const ScrollPhysics(),
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                      onLongPress: () {
+                        FocusScope.of(context).unfocus();
+                        showModalBottomSheet(
+                            showDragHandle: true,
+                            enableDrag: true,
+                            isScrollControlled: true,
+                            context: context,
+                            builder: (context) {
+                              return Container(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Divider(),
+                                    MessageCard(
+                                        chats: _chats[index],
+                                        chatUser: widget.user,
+                                      setHeight: true,
+                                    ),
+                                    const Divider(),
+                                    ListTile(
+                                      leading: Icon(Icons.delete),
+                                      title: Text("Delete"),
+                                      onTap: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return AlertDialog(
+                                              title: Text("Delete Message"),
+                                              content: Text(
+                                                  "Do you want to delete this message?"),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Text("Cancel")),
+                                                TextButton(
+                                                    onPressed: () {
+                                                      APIs.deleteMessage(
+                                                          widget.user,
+                                                          _chats[index]);
+                                                      Navigator.pop(context);
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Text("Delete"))
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: Icon(Icons.reply_rounded),
+                                      title: Text("Forward"),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        showModalBottomSheet(
+                                          context: context,
+                                          showDragHandle: true,
+                                          enableDrag: true,
+                                          builder: (context) {
+                                            List<ChatUser> users = [];
+                                            return Scaffold(
+                                              appBar: AppBar(
+                                                title: Text(
+                                                  "Forward Message To",
+                                                  style: GoogleFonts.poppins(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                                centerTitle: true,
+                                                automaticallyImplyLeading:
+                                                    false,
+                                              ),
+                                              body: StreamBuilder(
+                                                stream: APIs.getChatContacts(),
+                                                builder: (context, snapshot) {
+                                                  final chatContacts =
+                                                      snapshot.data?.docs ?? [];
+                                                  final contactIds =
+                                                      chatContacts
+                                                          .map((e) => e.id)
+                                                          .toList();
+                                                  return contactIds.isNotEmpty
+                                                      ? StreamBuilder(
+                                                          stream: APIs.getUsers(
+                                                              contactIds),
+                                                          builder: (context,
+                                                              snapshot) {
+                                                            if (snapshot
+                                                                .hasData) {
+                                                              final userData =
+                                                                  snapshot.data
+                                                                      ?.docs;
+                                                              users = userData
+                                                                      ?.map((e) =>
+                                                                          ChatUser.fromJson(
+                                                                              e.data()))
+                                                                      .toList() ??
+                                                                  [];
+
+                                                              if (users
+                                                                  .isNotEmpty) {
+                                                                return ListView
+                                                                    .builder(
+                                                                  itemCount: users
+                                                                      .length,
+                                                                  physics:
+                                                                      const BouncingScrollPhysics(),
+                                                                  itemBuilder:
+                                                                      (context,
+                                                                          index1) {
+                                                                    return ListTile(
+                                                                      leading:
+                                                                          CircleAvatar(
+                                                                        backgroundColor:
+                                                                            Colors.transparent,
+                                                                        backgroundImage:
+                                                                            NetworkImage(users[index1].userImageUrl),
+                                                                        radius:
+                                                                            20,
+                                                                      ),
+                                                                      title: Text(
+                                                                          users[index1]
+                                                                              .userName),
+                                                                      onTap:
+                                                                          () {
+                                                                        APIs.sendMessages(
+                                                                            users[index1],
+                                                                            _chats[index].messageContent,
+                                                                            _chats[index].messageType);
+                                                                        Navigator.pop(
+                                                                            context);
+                                                                      },
+                                                                    );
+                                                                  },
+                                                                );
+                                                              } else {
+                                                                // Display UI for no users found.
+                                                              }
+                                                            }
+                                                            // Handle other ConnectionState cases if needed.
+                                                            return const Center(
+                                                              child: Text(
+                                                                  'No data available.'),
+                                                            );
+                                                          },
+                                                        )
+                                                      : SingleChildScrollView(
+                                                          physics:
+                                                              const NeverScrollableScrollPhysics(),
+                                                          child: Column(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              SizedBox(
+                                                                  height: ScreenUtils
+                                                                      .screenHeightRatio(
+                                                                          context,
+                                                                          0.1)),
+                                                              Image.asset(
+                                                                'assets/images/network_connection_error.png',
+                                                                width: ScreenUtils
+                                                                    .screenWidthRatio(
+                                                                        context,
+                                                                        0.8),
+                                                                height: ScreenUtils
+                                                                    .screenHeightRatio(
+                                                                        context,
+                                                                        0.4),
+                                                              ),
+                                                              SizedBox(
+                                                                  height: ScreenUtils
+                                                                      .screenHeightRatio(
+                                                                          context,
+                                                                          0.04)),
+                                                              const Padding(
+                                                                padding: EdgeInsets
+                                                                    .symmetric(
+                                                                        horizontal:
+                                                                            16),
+                                                                child: Text(
+                                                                  'No Users Found',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        22,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                  height: ScreenUtils
+                                                                      .screenHeightRatio(
+                                                                          context,
+                                                                          0.02)),
+                                                              const Padding(
+                                                                padding: EdgeInsets
+                                                                    .symmetric(
+                                                                        horizontal:
+                                                                            16),
+                                                                child: Text(
+                                                                  'Press "Start Chat" to start a conversation with your friends.',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        16,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                  ),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                },
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    (_chats[index].messageType == "text")
+                                        ? ListTile(
+                                            leading: Icon(Icons.copy),
+                                            title: Text("Copy"),
+                                            onTap: () {
+                                              Clipboard.setData(ClipboardData(
+                                                  text: _chats[index]
+                                                      .messageContent));
+                                              Navigator.pop(context);
+                                            },
+                                          )
+                                        : Container(),
+                                    (_chats[index].messageType == "text")
+                                        ? ListTile(
+                                            leading: Icon(Icons.edit),
+                                            title: Text("Edit"),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              showDialog(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    TextEditingController
+                                                        editMessageController =
+                                                        TextEditingController(
+                                                            text: _chats[index]
+                                                                .messageContent);
+                                                    return AlertDialog(
+                                                      title:
+                                                          Text("Edit Message"),
+                                                      content: TextField(
+                                                        controller:
+                                                            editMessageController,
+                                                        decoration:
+                                                            InputDecoration(
+                                                          border:
+                                                              OutlineInputBorder(),
+                                                          labelText: 'Message',
+                                                        ),
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                            onPressed: () {
+                                                              Navigator.pop(
+                                                                  context);
+                                                            },
+                                                            child:
+                                                                Text("Cancel")),
+                                                        TextButton(
+                                                            onPressed: () {
+                                                              APIs.editMessage(
+                                                                  widget.user,
+                                                                  _chats[index]
+                                                                      .sendTime,
+                                                                  editMessageController
+                                                                      .text);
+                                                              Navigator.pop(
+                                                                  context);
+                                                            },
+                                                            child:
+                                                                Text("Edit")),
+                                                      ],
+                                                    );
+                                                  });
+                                            },
+                                          )
+                                        : Container(),
+                                  ],
+                                ),
+                              );
+                            });
+                      },
+                      child: MessageCard(
+                          chats: _chats[index], chatUser: widget.user, setHeight: false,));
+                },
               );
             } else {
               return Center(
@@ -188,58 +501,242 @@ class _UserChatScreenState extends State<UserChatScreen> {
 
   _buildAppBar() {
     return InkWell(
-      onTap: () {},
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IconButton(
-              onPressed: () {
-                if (MediaQuery.of(context).viewInsets.bottom != 0) {
-                  focusNode.unfocus();
-                } else if (_emoji || _attachment || _image) {
-                  setState(() {
-                    _emoji = false;
-                    _attachment = false;
-                    _image = false;
-                  });
-                } else {
-                  Navigator.pop(context);
-                }
-              },
-              icon: const Icon(Icons.arrow_back)),
-          Padding(
-            padding: EdgeInsets.only(right: _screenWidthRatio(0.02)),
-            child: IconButton(
-              onPressed: () {},
-              icon: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                backgroundImage: NetworkImage(widget.user.userImageUrl),
-                radius: 20,
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                widget.user.userName,
-                style: const TextStyle(
-                  fontSize: 18,
+      focusColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      onLongPress: () {
+        showModalBottomSheet(
+            context: context,
+            showDragHandle: true,
+            enableDrag: true,
+            builder: (context) {
+              return Container(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Divider(),
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.transparent,
+                            backgroundImage:
+                                NetworkImage(widget.user.userImageUrl),
+                            radius: 32,
+                          ),
+                          SizedBox(width: _screenWidthRatio(0.025)),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Text(
+                                  widget.user.userName,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              SizedBox(height: _screenHeightRatio(0.01)),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Text(
+                                  widget.user.userAbout,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: Icon(Icons.delete),
+                      title: Text("Delete All Chats"),
+                      onTap: () {
+                        showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text("Delete All Chats"),
+                                content:
+                                    Text("Do you want to delete all chats?"),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text("Cancel")),
+                                  TextButton(
+                                      onPressed: () {
+                                        APIs.deleteAllChat(widget.user);
+                                        Navigator.pop(context);
+                                        Navigator.pop(context);
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text("Delete"))
+                                ],
+                              );
+                            });
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.receipt),
+                      title: Text("Export Chat"),
+                      onTap: () {
+                        showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text("Export Chat"),
+                                content:
+                                    Text("Do you want to export this chat?"),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text("Cancel")),
+                                  TextButton(
+                                      onPressed: () async {
+                                        final json = _chats
+                                            .map((e) => e.toJson())
+                                            .toList();
+                                        try {
+                                          final dir = Directory(
+                                              '/storage/emulated/0/Documents/Conversa/');
+                                          if (!await dir.exists()) {
+                                            await dir.create(recursive: true);
+                                          }
+                                          final file = File(
+                                              '${dir.path}/${widget.user.userName}.txt');
+                                          await file
+                                              .writeAsString(jsonEncode(json));
+                                          Fluttertoast.showToast(
+                                              msg: 'Chats exported');
+                                          Navigator.pop(context);
+                                          print("File saved at ${file.path}");
+                                        } catch (e) {
+                                          Fluttertoast.showToast(
+                                              msg: e.toString());
+                                        }
+                                      },
+                                      child: Text("Export"))
+                                ],
+                              );
+                            });
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.block),
+                      title: Text("Block ${widget.user.userName}"),
+                      onTap: () {
+                        showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Text("Block User"),
+                                content:
+                                    Text("Do you want to block this user?"),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text("Cancel")),
+                                  TextButton(
+                                      onPressed: () {
+                                        APIs.blockUser(widget.user);
+                                        Navigator.pop(context);
+                                        Navigator.pop(context);
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text("Block"))
+                                ],
+                              );
+                            });
+                      },
+                    ),
+                  ],
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              Text(
-                "Last active on ${EpochToDate.getFormattedTime(context, widget.user.userLastActive)}",
-                style: Theme.of(context).textTheme.bodySmall,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          )
-        ],
-      ),
+              );
+            });
+      },
+      child: StreamBuilder(
+          stream: APIs.getUser(widget.user),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.docs;
+            final temp =
+                data?.map((e) => ChatUser.fromJson(e.data())).toList() ?? [];
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                IconButton(
+                    onPressed: () {
+                      if (MediaQuery.of(context).viewInsets.bottom != 0) {
+                        focusNode.unfocus();
+                      } else if (_emoji || _attachment || _image) {
+                        setState(() {
+                          _emoji = false;
+                          _attachment = false;
+                          _image = false;
+                        });
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back)),
+                Padding(
+                  padding: EdgeInsets.only(right: _screenWidthRatio(0.02)),
+                  child: IconButton(
+                    onPressed: () {},
+                    icon: CircleAvatar(
+                      backgroundColor: Colors.transparent,
+                      backgroundImage: NetworkImage(temp.isNotEmpty
+                          ? temp[0].userImageUrl
+                          : widget.user.userImageUrl),
+                      radius: 20,
+                    ),
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      temp.isNotEmpty ? temp[0].userName : widget.user.userName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    Text(
+                      temp.isNotEmpty
+                          ? (temp[0].userOnlineStatus
+                              ? "Online"
+                              : EpochToDate.getLastActive(
+                                  context, temp[0].userLastActive))
+                          : EpochToDate.getLastActive(
+                              context, widget.user.userLastActive),
+                      style: Theme.of(context).textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
+                )
+              ],
+            );
+          }),
     );
   }
 

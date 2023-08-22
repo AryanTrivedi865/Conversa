@@ -8,6 +8,8 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_notification_channel/flutter_notification_channel.dart';
+import 'package:flutter_notification_channel/notification_importance.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -45,6 +47,12 @@ class _ConversaState extends State<Conversa> {
       _currentThemeMode = mode;
       _saveThemeMode();
     });
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: _currentThemeMode == ThemeMode.dark
+          ? Brightness.light
+          : Brightness.dark,
+    ));
   }
 
   void _saveThemeMode() async {
@@ -109,6 +117,12 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _initializeFirebase() async {
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.android);
+      FlutterNotificationChannel.registerNotificationChannel(
+        description: "Chat notifications",
+        id: "conversa_chats_notification",
+        importance: NotificationImportance.IMPORTANCE_HIGH,
+        name: "Chats",
+      );
     } catch (e) {
       log('Firebase initialization error: $e');
     }
@@ -121,7 +135,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-
-
-/**  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 ***/
 

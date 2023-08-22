@@ -398,8 +398,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       state = ButtonState.idle;
                     });
                     Navigator.pop(context);
-                    Navigator.push(context,
-                        CupertinoPageRoute(builder: (context) => HomeScreen()));
+                    Navigator.pushAndRemoveUntil(context,
+                        CupertinoPageRoute(builder: (context) => HomeScreen()),(route) => false,);
                   },
                   child: Text('OK'),
                 ),

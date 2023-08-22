@@ -137,8 +137,8 @@ class _AIScreenState extends State<AIScreen> {
                                             BorderRadius.circular(12.0),
                                       ),
                                       padding: const EdgeInsets.all(12.0),
-                                      child: (message.text ==
-                                              "<\"data\": \"loading\">")
+                                      child: ((message.text ==
+                                              "<\"data\": \"loading\">")&&(!message.isUser))
                                           ? Lottie.asset(
                                               'assets/lottie_animation/typing.json',
                                               height: 24,
@@ -161,40 +161,42 @@ class _AIScreenState extends State<AIScreen> {
                                 );
                               },
                             ),
-                            Positioned(
-                              top: 8,
-                              left: 8,
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    tooltip: 'Reset LunaAI',
-                                    icon: const Icon(Icons.refresh),
-                                    onPressed: () async {
-                                      setState(() {
-                                        _messages.clear();
-                                      });
-                                      _saveChatHistory();
-                                      _controller.clear();
-                                      SharedPreferences prefs =
-                                          await SharedPreferences.getInstance();
-                                      prefs.setBool('aiChat', false);
-                                      setState(
-                                        () {
-                                          isClicked = false;
-                                        },
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Clear Chat',
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      clearChat();
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
+                            (_messages.length>2)?
+                              Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Reset LunaAI',
+                                      icon: const Icon(Icons.refresh),
+                                      onPressed: () async {
+                                        setState(() {
+                                          _messages.clear();
+                                          _messages.add(ChatMessage(text: "Hey there! I am LunaAI", isUser: false));
+                                        });
+                                        _saveChatHistory();
+                                        _controller.clear();
+                                        SharedPreferences prefs =
+                                        await SharedPreferences.getInstance();
+                                        prefs.setBool('aiChat', false);
+                                        setState(
+                                              () {
+                                            isClicked = false;
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Clear Chat',
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        clearChat();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ):Container(),
                           ],
                         ),
                 ),
@@ -267,13 +269,14 @@ class _AIScreenState extends State<AIScreen> {
   void clearChat() {
     setState(() {
       _messages.clear();
+      _messages.add(ChatMessage(text: "Hey there! I am LunaAI", isUser: false));
     });
     _saveChatHistory();
     _controller.clear();
   }
 
   Future<String> getChatResponse(String message) async {
-    final apiKey = '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';
+    final apiKey = 'YOUR_API_KEY_HERE';
     final endpoint = 'https://api.openai.com/v1/chat/completions';
 
     final response = await http.post(

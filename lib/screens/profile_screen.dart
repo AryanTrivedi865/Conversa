@@ -4,14 +4,12 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:conversa/api/apis.dart';
 import 'package:conversa/authentication/welcome_screen.dart';
-import 'package:conversa/main.dart';
 import 'package:conversa/utils/epoch_to_date.dart';
 import 'package:conversa/utils/photo_zoom.dart';
 import 'package:conversa/utils/utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:conversa/models/chat_user.dart';
-import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -38,9 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Brightness brightness = Theme.of(context).brightness;
     return Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text(
             "Conversa",
             style: TextStyle(
@@ -49,33 +47,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           centerTitle: true,
-          actions: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-              child: IconButton(
-                key: ValueKey<bool>(brightness == Brightness.dark),
-                onPressed: () {
-                  _toggleTheme(
-                      context,
-                      Theme.of(context).brightness == Brightness.dark
-                          ? ThemeMode.light
-                          : ThemeMode.dark);
-                },
-                icon: Icon(
-                  brightness == Brightness.dark
-                      ? Icons.light_mode
-                      : Icons.dark_mode,
-                  size: ScreenUtils.screenWidthRatio(context, 0.06),
-                ),
-              ),
-            ),
-          ],
         ),
         body: deleteProfile
             ? Center(
@@ -607,11 +578,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .update({"userImageUrl": APIs.defaultImage});
     APIs.firebaseUser.updatePhotoURL(APIs.defaultImage);
     Navigator.pop(context);
-  }
-
-  void _toggleTheme(BuildContext context, ThemeMode themeMode) {
-    const conversa = Conversa();
-    conversa.toggleThemeMode(themeMode);
   }
 
   Future<void> updateUserInfo(String userName, String userAbout) async {

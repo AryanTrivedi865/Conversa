@@ -3,9 +3,10 @@ import 'dart:io';
 
 import 'package:conversa/api/apis.dart';
 import 'package:conversa/screens/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter_native_image/flutter_native_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -38,7 +39,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   TextEditingController nameController = TextEditingController();
   TextEditingController statusController =
-      TextEditingController(text: "Available on Conversa");
+  TextEditingController(text: "Available on Conversa");
 
   TextEditingController emailController = TextEditingController();
 
@@ -53,14 +54,26 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     emailController.text = widget.authCred.isNotEmpty ? widget.authCred : "";
     final isDone = state == ButtonState.done;
     final isStretched = isAnimating || state == ButtonState.idle;
-    buttonColor = Theme.of(context).brightness == Brightness.light
+    buttonColor = Theme
+        .of(context)
+        .brightness == Brightness.light
         ? Colors.black
-        : Theme.of(context).colorScheme.onSurface;
-    buttonTextColor = Theme.of(context).brightness == Brightness.dark
+        : Theme
+        .of(context)
+        .colorScheme
+        .onSurface;
+    buttonTextColor = Theme
+        .of(context)
+        .brightness == Brightness.dark
         ? Colors.black
         : Colors.white;
-    textColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.onSurface
+    textColor = Theme
+        .of(context)
+        .brightness == Brightness.dark
+        ? Theme
+        .of(context)
+        .colorScheme
+        .onSurface
         : Colors.black;
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -77,7 +90,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SizedBox(
-                          height: ScreenUtils.screenHeightRatio(context, 0.025)),
+                          height: ScreenUtils.screenHeightRatio(
+                              context, 0.025)),
                       Text(
                         'Hey There!',
                         style: GoogleFonts.poppins(
@@ -101,14 +115,14 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                           children: [
                             profileFile != null
                                 ? CircleAvatar(
-                                    radius: 64,
-                                    backgroundImage: FileImage(profileFile!),
-                                  )
+                              radius: 64,
+                              backgroundImage: FileImage(profileFile!),
+                            )
                                 : CircleAvatar(
-                                    radius: 64,
-                                    backgroundImage:
-                                        NetworkImage(APIs.defaultImage),
-                                  ),
+                              radius: 64,
+                              backgroundImage:
+                              NetworkImage(APIs.defaultImage),
+                            ),
                             Positioned(
                               right: -8,
                               bottom: -8,
@@ -208,7 +222,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                               ? ScreenUtils.screenWidthRatio(context, 1)
                               : ScreenUtils.screenHeightRatio(context, 0.065),
                           height: ScreenUtils.screenHeightRatio(context, 0.065),
-                          onEnd: () => setState(() => isAnimating = !isAnimating),
+                          onEnd: () =>
+                              setState(() => isAnimating = !isAnimating),
                           duration: Duration(milliseconds: 300),
                           curve: Curves.easeIn,
                           child: isStretched
@@ -237,20 +252,26 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           if (profileFile != null) {
             profileUrl = await updateProfilePhoto(profileFile!);
           }
-          await APIs.firestore.collection("users").doc(APIs.firebaseUser.uid).update({
+          await APIs.firestore.collection("users")
+              .doc(APIs.firebaseUser.uid)
+              .update({
             "userID": APIs.firebaseUser.uid,
             "userName": nameController.text,
             "userAuthenticationCredentials": emailController.text,
             "userAbout": statusController.text,
             "userImageUrl": profileUrl,
-          }).then((value) {
+          })
+              .then((value) {
+            User user = APIs.firebaseUser;
+            user.updateDisplayName(nameController.text);
+            user.updatePhotoURL(profileUrl);
             setState(() {
               state = ButtonState.done;
             });
             Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => HomeScreen()),
-                (route) => false);
+                    (route) => false);
           });
         }
       },
@@ -278,9 +299,9 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         child: isDone
             ? Icon(Icons.done, color: buttonTextColor, size: 32)
             : CircularProgressIndicator(
-                strokeWidth: 2,
-                color: buttonTextColor,
-              ),
+          strokeWidth: 2,
+          color: buttonTextColor,
+        ),
       ),
     );
   }
@@ -307,7 +328,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                           Expanded(
                             child: Text("Profile photo",
                                 style:
-                                    Theme.of(context).textTheme.headlineMedium,
+                                Theme
+                                    .of(context)
+                                    .textTheme
+                                    .headlineMedium,
                                 textAlign: TextAlign.start),
                           ),
                         ],
@@ -390,7 +414,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   }
 
   Future<String> updateProfilePhoto(File file) async {
-    final extension = file.path.split(".").last;
+    checkFile(file);
+    final extension = file.path
+        .split(".")
+        .last;
     final storageRef = APIs.storage
         .ref()
         .child("profilePicture/${APIs.firebaseUser.uid}.$extension");
@@ -404,6 +431,17 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       profileUrl = path;
     });
     return path;
+  }
+
+  Future<void> checkFile(File file) async {
+    if (file.lengthSync() > 3 * 1024 * 1024) {
+      log("Compressing image");
+      file = await FlutterNativeImage.compressImage(file.path,
+          quality: 80, percentage: 80);
+      if (file.lengthSync() > 3 * 1024 * 1024) {
+        checkFile(file);
+      }
+    }
   }
 }
 

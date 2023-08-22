@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:conversa/utils/epoch_to_date.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +33,7 @@ class _ZoomImageState extends State<ZoomImage> {
           padding: const EdgeInsets.only(bottom: 32.0),
           child: PhotoView(
             minScale: PhotoViewComputedScale.contained,
-            imageProvider: NetworkImage(widget.photoUrl),
+            imageProvider: CachedNetworkImageProvider(widget.photoUrl),
           ),
         ),
       ),
@@ -139,7 +140,7 @@ class ZoomImageListState extends State<ZoomImageList> {
           tag: files[index],
           child: PhotoView(
             minScale: PhotoViewComputedScale.contained,
-            imageProvider: NetworkImage(files[index]),
+            imageProvider: CachedNetworkImageProvider(files[index]),
           ),
         ),
       ),
